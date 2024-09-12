@@ -1,0 +1,97 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: apply-pss-restricted-profile
+  annotations:
+    policies.kyverno.io/title: Apply PSS Restricted Profile
+    policies.kyverno.io/category: Pod Security Admission
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Pod Security Standards define the fields and their options which
+      are allowable for Pods to achieve certain security best practices. While
+      these are typically validation policies, workloads will either be accepted or
+      rejected based upon what has already been defined. It is also possible to mutate
+      incoming Pods to achieve the desired PSS level rather than reject. This policy
+      sets all the fields necessary to pass the PSS Restricted profile.
+spec:
+  background: false
+  rules:
+  - name: add-pss-fields-pod
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          operations:
+          - CREATE
+          - UPDATE
+    exclude:
+      any:
+      - resources:
+          namespaces:
+          - ingress-nginx
+      - resources:
+          kinds:
+          - Pod
+          namespaceSelector:
+            matchExpressions:
+            - key: pod-security.kubernetes.io/enforce
+              operator: In
+              values:
+              - baseline
+              - privileged
+    mutate:
+      patchStrategicMerge:
+        spec:
+          securityContext:
+            seccompProfile:
+              +(type): RuntimeDefault
+            +(runAsNonRoot): true
+  - name: add-pss-fields-containers
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          operations:
+          - CREATE
+          - UPDATE
+    exclude:
+      any:
+      - resources:
+          namespaces:
+          - ingress-nginx
+      - resources:
+          kinds:
+          - Pod
+          namespaceSelector:
+            matchExpressions:
+            - key: pod-security.kubernetes.io/enforce
+              operator: In
+              values:
+              - baseline
+              - privileged
+    mutate:
+      foreach:
+      - list: "request.object.spec.containers[]"
+        patchStrategicMerge:
+          spec:
+            containers:
+            - (name): "{{ element.name }}"
+              securityContext:
+                +(allowPrivilegeEscalation): false
+                +(capabilities):
+                  drop:
+                  - ALL
+                +(privileged): false
+      - list: "request.object.spec.initContainers[]"
+        patchStrategicMerge:
+          spec:
+            initContainers:
+            - (name): "{{ element.name }}"
+              securityContext:
+                +(allowPrivilegeEscalation): false
+                +(capabilities):
+                  drop:
+                  - ALL
+                +(privileged): false

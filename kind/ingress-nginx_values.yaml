@@ -1,0 +1,21 @@
+controller:
+  enableAnnotationValidations: true
+  dnsPolicy: ClusterFirstWithHostNet
+  reportNodeInternalIp: true
+  watchIngressWithoutClass: true
+  allowSnippetAnnotations: true
+  hostNetwork: true
+  hostPort:
+    enabled: true
+    ports:
+      http: 80
+      https: 443
+  ingressClassResource:
+    default: true
+  publishService:
+    enabled: false
+  nodeSelector:
+    kubernetes.io/hostname: lab1-worker
+    kubernetes.io/os: linux
+  service:
+    enabled: false

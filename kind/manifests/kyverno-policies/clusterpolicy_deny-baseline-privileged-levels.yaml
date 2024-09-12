@@ -1,0 +1,54 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: deny-baseline-privileged-levels
+  annotations:
+    policies.kyverno.io/title: Deny Baseline and Privileged Levels
+    policies.kyverno.io/category: Pod Security Admission
+    policies.kyverno.io/subject: Namespace
+    policies.kyverno.io/description: >-
+      When Pod Security Admission (PSA) is enforced at the cluster level
+      via an AdmissionConfiguration file which defines a default level at
+      restricted, setting of a label at the baseline or privileged level
+      will effectively cause unrestricted workloads in that Namespace, overriding
+      the cluster default. This may effectively represent a circumvention attempt
+      and should be closely controlled. This policy ensures that only those holding
+      the cluster-admin ClusterRole may create Namespaces which assign the label
+      pod-security.kubernetes.io/enforce=baseline or pod-security.kubernetes.io/enforce=privileged.
+spec:
+  validationFailureAction: Enforce
+  applyRules: All
+  background: false
+  rules:
+  - name: check-baseline
+    match:
+      any:
+      - resources:
+          kinds:
+          - Namespace
+          selector:
+            matchLabels:
+              pod-security.kubernetes.io/enforce: baseline
+    exclude:
+      any:
+      - clusterRoles:
+        - cluster-admin
+    validate:
+      message: Only cluster admins are allowed to create, update or delete Namespaces which enforce baseline pod security level.
+      deny: {}
+  - name: check-privileged
+    match:
+      any:
+      - resources:
+          kinds:
+          - Namespace
+          selector:
+            matchLabels:
+              pod-security.kubernetes.io/enforce: privileged
+    exclude:
+      any:
+      - clusterRoles:
+        - cluster-admin
+    validate:
+      message: Only cluster admins are allowed to create, update or delete Namespaces which enforce privileged pod security level.
+      deny: {}
