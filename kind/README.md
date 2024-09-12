@@ -1,12 +1,18 @@
 # Kind K8s Lab Cluster
+Simple `Makefile` which creates lab cluster.
 
+Prerequsites:
+ - Kind
+ - Kubectl
+ - Helm
+
+Run `make` with desired K8s version as a target.
 ```
 Usage: make {1.30|1.31|delete}
 ```
 
-Use `make` with desired K8s version as a target.
-
-It creates lab cluster named **lab1**:
+The resulting cluster:
+  * named Lab1
   * 1 controle plane node, 2 worker nodes
   * CNI is Cilium
   * default enforcement of **restricted** Pod Security Standard (PSS) policy
