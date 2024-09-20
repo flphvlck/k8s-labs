@@ -13,7 +13,7 @@ ssh-key-create:
 	vagrant ssh cp1 -c "sudo cat /etc/kubernetes/admin.conf" > kubeconfig
 
 destroy:
-	rm -f ssh/sshkey ssh/sshkey.pub
+	rm -f ssh/id_ed25519 ssh/id_ed25519.pub
 	vagrant destroy -f
 
 # vim: set noexpandtab:
