@@ -8,12 +8,12 @@ Prerequsites:
 
 Run `make` with desired K8s version as a target.
 ```
-Usage: make {1.30|1.31|delete}
+Usage: make {1.30|1.31|1.31-ha|delete}
 ```
 
 The resulting cluster:
   * named Lab1
-  * 1 controle plane node, 2 worker nodes
+  * 1 controle plane node (or 3 with ``-ha`` suffix), 2 worker nodes
   * CNI is Cilium
   * default enforcement of **restricted** Pod Security Standard (PSS) policy
     * use ``pod-security.kubernetes.io`` labels on namespace to elevate to other level of permissions
