@@ -1,5 +1,5 @@
 help:
-	@echo "Usage: make {1.30|1.31|delete}"
+	@echo "Usage: make {1.30|1.31|1.31-ha|delete}"
 
 kind-create:
 	kind create cluster --config kind-cluster-$(MAKECMDGOALS).yaml
@@ -22,6 +22,8 @@ post-create:
 1.30: kind-create post-create
 
 1.31: kind-create post-create
+
+1.31-ha: kind-create post-create
     
 delete:
 	kind delete cluster --name lab1
