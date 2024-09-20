@@ -1,0 +1,43 @@
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: "@@LOCAL_IP@@"
+  bindPort: 6443
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+clusterName: "lab1"
+apiServer:
+  extraArgs:
+  - name: admission-control-config-file
+    value: /etc/kubernetes/admissionconfiguration.yaml
+  - name: authorization-mode
+    value: Node,RBAC
+  - name: enable-admission-plugins
+    value: ExtendedResourceToleration,NodeRestriction
+  extraVolumes:
+  - name: etc-kubernetes-admissionconfiguration
+    hostPath: /etc/kubernetes/admissionconfiguration.yaml
+    mountPath: /etc/kubernetes/admissionconfiguration.yaml
+    pathType: File
+    readOnly: true
+  certSANs:
+  - "lab1-api.lab.hvlck.xyz"
+  - "cp1.lab.hvlck.xyz"
+  - "cp2.lab.hvlck.xyz"
+  - "cp3.lab.hvlck.xyz"
+  - "192.168.56.80"
+  - "192.168.56.81"
+  - "192.168.56.82"
+  - "192.168.56.83"
+networking:
+  serviceSubnet: "10.96.0.0/16"
+  podSubnet: "10.244.0.0/16"
+  dnsDomain: "cluster.local"
+controlPlaneEndpoint: "lab1-api.lab.hvlck.xyz"
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+cgroupDriver: systemd
+resolvConf: /etc/resolv.conf-kubernetes
+maxPods: 111

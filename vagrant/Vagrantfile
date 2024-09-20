@@ -1,0 +1,183 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+$script = <<-SCRIPT
+KUBE_VERSION=1.31
+CONTAINERD_VERSION=1.7.22-1
+
+## install necessary packages
+apt-get update
+#apt-get -y upgrade
+apt-get -y install apt-transport-https ca-certificates curl dnsutils git gnupg iputils-ping net-tools openssh-client openssl procps psmisc rsync vim-nox whois iptables arptables ebtables socat
+
+## switch to legacy versions
+update-alternatives --set iptables /usr/sbin/iptables-legacy
+update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+update-alternatives --set arptables /usr/sbin/arptables-legacy
+update-alternatives --set ebtables /usr/sbin/ebtables-legacy
+
+## SSH between nodes
+mkdir -p /root/.ssh
+cp /vagrant/ssh/id_ed25519.pub /root/.ssh/authorized_keys
+cp /vagrant/ssh/id_ed25519 /root/.ssh/
+chmod 600 /root/.ssh/id_ed25519
+cp /vagrant/ssh/config /root/.ssh/config
+
+## install HAProxy on proxy1 
+if [[ "$HOSTNAME" == "proxy1" ]]; then
+  apt-get -y install haproxy
+  cp /vagrant/haproxy/* /etc/haproxy/
+  systemctl restart haproxy
+fi
+
+## k8s nodes only
+if [[ "$HOSTNAME" =~ ^(cp|w).*$ ]]; then
+    ## create resolv.conf
+    cat <<EOF>/etc/resolv.conf-kubernetes
+nameserver 193.17.47.1
+nameserver 185.43.135.1
+EOF
+
+    ## disable swap
+    swapoff -a
+    sed -i "/swap/d" /etc/fstab
+
+    ## settings for kubernetes
+    modprobe br_netfilter
+    echo "net.ipv4.ip_forward=1" > /etc/sysctl.d/kubernetes.conf
+    sysctl -f /etc/sysctl.d/kubernetes.conf
+
+    ## install containerd.io
+    curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+    apt-get update
+    apt-get -y install containerd.io=${CONTAINERD_VERSION}
+    containerd config default > /etc/containerd/config.toml
+    sed -i "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml
+    sed -i 's@sandbox_image = "registry.k8s.io/pause:3.8"@sandbox_image = "registry.k8s.io/pause:3.10"@g' /etc/containerd/config.toml
+    systemctl restart containerd.service
+
+    ## install kubeadm, kubelet, kubectl, cri-tools
+    curl -fsSL "https://pkgs.k8s.io/core:/stable:/v${KUBE_VERSION}/deb/Release.key" | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBE_VERSION}/deb/ /" > /etc/apt/sources.list.d/kubernetes.list
+    apt-get update
+    apt-get -y install kubelet kubeadm kubectl cri-tools
+    crictl config --set runtime-endpoint=unix:///run/containerd/containerd.sock,image-endpoint=unix:///run/containerd/containerd.sock
+    LOCAL_IP=$(ip address show dev eth1 | grep -o -E "192.168.56.8[0-9]{1}")
+    echo "KUBELET_EXTRA_ARGS=\"--node-ip=${LOCAL_IP}\"" > /etc/default/kubelet
+
+    ## additional systemd config for kubelet
+    mkdir /etc/systemd/system/kubelet.service.d
+    echo -e "[Unit]\nAfter=containerd.service" > /etc/systemd/system/kubelet.service.d/12-after-containerd.conf
+    systemctl daemon-reload
+
+    ## kubeadm-init directory
+    mkdir /etc/kubernetes/kubeadm-init
+
+    ## control-plane nodes
+    if [[ "$HOSTNAME" =~ ^cp[1-3]$ ]]; then
+        cp /vagrant/kubernetes/admissionconfiguration.yaml /etc/kubernetes/admissionconfiguration.yaml
+        cp /vagrant/kubernetes/config.yaml /etc/kubernetes/kubeadm-init/config.yaml
+        sed -i "s/@@LOCAL_IP@@/$LOCAL_IP/g" /etc/kubernetes/kubeadm-init/config.yaml
+
+        if [[ "$HOSTNAME" == "cp1" ]]; then
+            kubeadm init --config=/etc/kubernetes/kubeadm-init/config.yaml
+            mkdir /root/.kube
+            cp /etc/kubernetes/admin.conf /root/.kube/config
+            sleep 30
+            curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+            chmod 700 get_helm.sh
+            ./get_helm.sh
+            helm repo add cilium https://helm.cilium.io/
+            helm repo add kyverno https://kyverno.github.io/kyverno/
+            helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+            helm repo update
+            kubectl -n kube-system patch daemonset kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-existing": "true"}}}}}'
+            helm upgrade --install cilium cilium/cilium --namespace kube-system --values /vagrant/kubernetes/cilium_values.yaml
+            helm upgrade --install kyverno kyverno/kyverno --namespace kyverno --create-namespace --values /vagrant/kubernetes/kyverno_values.yaml
+            JOIN_TOKEN=$(kubeadm token create 2>/dev/null)
+            JOIN_CERTIFICATE_KEY=$(kubeadm certs certificate-key)
+            kubeadm init phase upload-certs --certificate-key "$JOIN_CERTIFICATE_KEY" --upload-certs
+            JOIN_CA_HASH=$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt 2>/dev/null | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //')
+cat <<EOF>/etc/kubernetes/kubeadm-init/join.yaml
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: lab1-api.lab.hvlck.xyz:6443
+    token: $JOIN_TOKEN
+    caCertHashes: ["sha256:$JOIN_CA_HASH"]
+controlPlane:
+  certificateKey: $JOIN_CERTIFICATE_KEY
+  localAPIEndpoint:
+    advertiseAddress: "@@LOCAL_IP@@"
+    bindPort: 6443
+EOF
+        else
+            scp cp1.lab.hvlck.xyz:/etc/kubernetes/kubeadm-init/join.yaml /etc/kubernetes/kubeadm-init/join.yaml
+            sed -i "s/@@LOCAL_IP@@/$LOCAL_IP/g" /etc/kubernetes/kubeadm-init/join.yaml
+            kubeadm join --config=/etc/kubernetes/kubeadm-init/join.yaml
+        fi
+
+    ## worker nodes
+    else
+        scp cp1.lab.hvlck.xyz:/etc/kubernetes/kubeadm-init/join.yaml /etc/kubernetes/kubeadm-init/join.yaml
+        sed -i '/controlPlane/,$d' /etc/kubernetes/kubeadm-init/join.yaml
+        kubeadm join --config=/etc/kubernetes/kubeadm-init/join.yaml
+        if [[ "$HOSTNAME" == "w2" ]]; then
+            ssh  cp1.lab.hvlck.xyz "helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace --values /vagrant/kubernetes/ingress-nginx_values.yaml; \
+            kubectl apply -f /vagrant/kubernetes/manifests/kyverno-policies"
+        fi
+    fi
+
+fi
+SCRIPT
+
+
+BOX_IMAGE = "debian/bookworm64"
+
+Vagrant.configure("2") do |config|
+
+  config.vm.box = BOX_IMAGE
+
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 2048
+    v.cpus = 2
+    v.customize ["modifyvm", :id, "--cpuexecutioncap", "50"]
+  end
+
+  config.vm.define "proxy1" do |subconfig|
+    subconfig.vm.hostname = "proxy1"
+    subconfig.vm.network :private_network, ip: "192.168.56.80"
+    subconfig.vm.provider "virtualbox" do |v|
+      v.cpus = 1
+      v.memory = 512
+    end
+  end
+
+  config.vm.define "cp1" do |subconfig|
+    subconfig.vm.hostname = "cp1"
+    subconfig.vm.network :private_network, ip: "192.168.56.81"
+  end
+
+  config.vm.define "cp2" do |subconfig|
+    subconfig.vm.hostname = "cp2"
+    subconfig.vm.network :private_network, ip: "192.168.56.82"
+  end
+  config.vm.define "cp3" do |subconfig|
+    subconfig.vm.hostname = "cp3"
+    subconfig.vm.network :private_network, ip: "192.168.56.83"
+  end
+
+  config.vm.define "w1" do |subconfig|
+    subconfig.vm.hostname = "w1"
+    subconfig.vm.network :private_network, ip: "192.168.56.84"
+  end
+
+  config.vm.define "w2" do |subconfig|
+    subconfig.vm.hostname = "w2"
+    subconfig.vm.network :private_network, ip: "192.168.56.85"
+  end
+
+  config.vm.provision "shell", inline: $script
+end

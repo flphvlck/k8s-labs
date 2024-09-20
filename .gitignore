@@ -1,0 +1,3 @@
+vagrant/.vagrant
+vagrant/kubeconfig
+vagrant/ssh/id_ed25519*

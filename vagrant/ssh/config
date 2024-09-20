@@ -1,0 +1,2 @@
+Host cp* w* *.lab.hvlck.xyz
+StrictHostKeyChecking no
