@@ -47,6 +47,10 @@ resource "google_container_cluster" "lab_cluster" {
   ip_allocation_policy {
     cluster_secondary_range_name  = "${random_pet.name.id}-pods"
   }
+
+  workload_identity_config {
+    workload_pool = "${var.google_provider_project}.svc.id.goog"
+  }
 }
 
 resource "google_container_node_pool" "primary_spot" {
