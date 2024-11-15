@@ -8,6 +8,6 @@ Active labs:
 * Vagrant
 * EKS (Terraform, borrowed from https://github.com/aws-samples/eks-workshop-v2) 
 
-Sleepers (currently unamaintained):
+Sleepers (currently unmaintained):
 
 * GKE (Terraform)
