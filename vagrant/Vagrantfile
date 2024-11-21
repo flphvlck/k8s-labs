@@ -3,7 +3,6 @@
 
 $script = <<-SCRIPT
 KUBE_VERSION=1.31
-CONTAINERD_VERSION=1.7.22-1
 
 ## install necessary packages
 apt-get update
@@ -51,7 +50,7 @@ EOF
     curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
     apt-get update
-    apt-get -y install containerd.io=${CONTAINERD_VERSION}
+    apt-get -y install containerd.io
     containerd config default > /etc/containerd/config.toml
     sed -i "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml
     sed -i 's@sandbox_image = "registry.k8s.io/pause:3.8"@sandbox_image = "registry.k8s.io/pause:3.10"@g' /etc/containerd/config.toml
