@@ -1,0 +1,87 @@
+# RKE2 Server Node
+# 6443 from guest forwarded to host
+
+images:
+# Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
+- location: "https://cloud-images.ubuntu.com/releases/24.04/release-20241004/ubuntu-24.04-server-cloudimg-amd64.img"
+  arch: "x86_64"
+  digest: "sha256:fad101d50b06b26590cf30542349f9e9d3041ad7929e3bc3531c81ec27f2c788"
+- location: "https://cloud-images.ubuntu.com/releases/24.04/release-20241004/ubuntu-24.04-server-cloudimg-arm64.img"
+  arch: "aarch64"
+  digest: "sha256:e380b683b0c497d2a87af8a5dbe94c42eb54548fa976167f307ed8cf3944ec57"
+# Fallback to the latest release image.
+# Hint: run `limactl prune` to invalidate the cache
+- location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+  arch: "x86_64"
+- location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
+  arch: "aarch64"
+
+mounts: 
+- location: "~/git/k8s-labs/rke2/lima-rke2-mount"
+  mountPoint: "/tmp/lima-rke2-mount"
+  writable: true
+  
+# containerd is managed by rke2, not by Lima, so the values are set to false here.
+containerd:
+  system: false
+  user: false
+
+user:
+  name: lab
+  comment: "Lab User"
+  uid: 1000
+  home: "/home/{{.User}}"
+
+networks:
+  - lima: user-v2
+
+portForwards:
+  - guestPort: 6443
+  - guestPortRange: [1, 65535]
+    guestIP: "0.0.0.0"
+    ignore: true
+
+provision:
+- mode: system
+  script: |
+    #!/bin/sh
+    [ -d /etc/rancher/rke2 ] || mkdir -p /etc/rancher/rke2
+    cp /tmp/lima-rke2-mount/server-config.yaml /etc/rancher/rke2/config.yaml
+    if [ ! -d /var/lib/rancher/rke2 ]; then
+      curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL=v1.31 sh -
+    fi
+    env | grep "http_proxy\|https_proxy\|no_proxy" > /etc/default/rke2-server
+    sed -i "s/http_proxy/CONTAINERD_HTTP_PROXY/g" /etc/default/rke2-server
+    sed -i "s/https_proxy/CONTAINERD_HTTPS_PROXY/g" /etc/default/rke2-server
+    sed -i "s/no_proxy/CONTAINERD_NO_PROXY/g" /etc/default/rke2-server
+
+    systemctl enable rke2-server.service
+    systemctl start rke2-server.service
+
+    cat<<EOF>/tmp/lima-rke2-mount/registering-config.yaml
+    server: https://$(ip -4 -brief -json address show eth0 | jq -r .[].addr_info[].local):9345
+    token: $(cat /var/lib/rancher/rke2/server/node-token)
+    EOF
+
+probes:
+- script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until test -f /etc/rancher/rke2/rke2.yaml; do sleep 3; done"; then
+            echo >&2 "rke2 is not running yet"
+            exit 1
+    fi
+  hint: |
+    The rke2 kubeconfig file has not yet been created.
+    Run "limactl shell rke2 sudo journalctl -u rke2-server" to check the log.
+    If that is still empty, check the bottom of the log at "/var/log/cloud-init-output.log".
+copyToHost:
+- guest: "/etc/rancher/rke2/rke2.yaml"
+  host: "{{.Dir}}/copied-from-guest/kubeconfig.yaml"
+  deleteOnStop: true
+message: |
+  To run `kubectl` on the host (assumes kubectl is installed), run the following commands:
+  ------
+  export KUBECONFIG="{{.Dir}}/copied-from-guest/kubeconfig.yaml"
+  kubectl ...
+  ------

@@ -1,8 +1,9 @@
-vagrant/.vagrant
-vagrant/kubeconfig
-vagrant/ssh/id_ed25519*
+kubeadm/.vagrant
+kubeadm/kubeconfig
+kubeadm/ssh/id_ed25519*
 **/.terraform/*
 *.tfstate
 *.tfstate.*
 *.tfvars
 *.tfvars.json
+**/registering-config.yaml
