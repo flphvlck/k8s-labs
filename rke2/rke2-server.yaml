@@ -1,5 +1,5 @@
 # RKE2 Server Node
-# 6443 from guest forwarded to host
+# port 6443 from guest forwarded to host
 
 images:
 # Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
@@ -57,6 +57,7 @@ provision:
     mkdir -p /var/lib/rancher/rke2/server/manifests
     chmod 700 /var/lib/rancher/rke2/server
     sed "s/<KUBE_API_SERVER_IP>/${SERVER_IP}/g" /tmp/lima-rke2-mount/rke2-cilium-config.yaml > /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml
+    cp /tmp/lima-rke2-mount/rke2-ingress-nginx-config.yaml /var/lib/rancher/rke2/server/manifests/
 
     systemctl enable rke2-server.service
     systemctl start rke2-server.service

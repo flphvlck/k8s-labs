@@ -1,0 +1,14 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: rke2-ingress-nginx
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    controller:
+      hostNetwork: true
+      config:
+        ## automatic port forwarding in Lima can't handle same listening ports from multiple workers and on multiple interfaces
+        worker-processes: 1
+        disable-ipv6: true
+        ##

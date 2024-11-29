@@ -8,3 +8,13 @@ spec:
     kubeProxyReplacement: true
     k8sServiceHost: <KUBE_API_SERVER_IP>
     k8sServicePort: 6443
+    hubble:
+      enabled: true
+      relay:
+        enabled: true
+      ui:
+        enabled: true
+        ingress:
+          enabled: true
+          hosts:
+          - hubble.lab.hvlck.xyz

@@ -1,5 +1,5 @@
-# RKE2 Server Node
-# 6443 from guest forwarded to host
+# RKE2 Agent Node
+# port 80 and 443 from guest forwarded to host
 
 images:
 # Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
@@ -36,7 +36,10 @@ networks:
   - lima: user-v2
 
 portForwards:
-#  - guestPort: 6443
+  - guestPort: 80
+    hostIP: "127.0.0.1"
+  - guestPort: 443
+    hostIP: "127.0.0.1"
   - guestPortRange: [1, 65535]
     guestIP: "0.0.0.0"
     ignore: true
@@ -68,3 +71,12 @@ probes:
     RKE2 agent node is not added yet.
     Run "limactl shell rke2 sudo journalctl -u rke2-agent" to check the log.
     If that is still empty, check the bottom of the log at "/var/log/cloud-init-output.log".
+- script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until curl localhost; do sleep 5; done"; then
+        echo >&2 "Ingress controller is not running yet"
+        exit 1
+    else
+        sleep 15
+    fi
