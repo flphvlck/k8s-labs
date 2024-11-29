@@ -45,15 +45,13 @@ provision:
 - mode: system
   script: |
     #!/bin/sh
+
+    [ -d /var/lib/rancher/rke2 ] && exit 0
+
     [ -d /etc/rancher/rke2 ] || mkdir -p /etc/rancher/rke2
     cp /tmp/lima-rke2-mount/registering-config.yaml /etc/rancher/rke2/config.yaml
-    if [ ! -d /var/lib/rancher/rke2 ]; then
-      curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL=v1.31 sh -
-    fi
-    env | grep "http_proxy\|https_proxy\|no_proxy" > /etc/default/rke2-server
-    sed -i "s/http_proxy/CONTAINERD_HTTP_PROXY/g" /etc/default/rke2-server
-    sed -i "s/https_proxy/CONTAINERD_HTTPS_PROXY/g" /etc/default/rke2-server
-    sed -i "s/no_proxy/CONTAINERD_NO_PROXY/g" /etc/default/rke2-server
+
+    curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL=v1.31 sh -
 
     systemctl enable rke2-agent.service
     systemctl start rke2-agent.service

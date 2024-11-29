@@ -45,21 +45,24 @@ provision:
 - mode: system
   script: |
     #!/bin/sh
+
+    [ -d /var/lib/rancher/rke2 ] && exit 0
+
+    SERVER_IP=$(ip -4 -brief -json address show eth0 | jq -r .[].addr_info[].local)
+
+    curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL=v1.31 sh -
+
     [ -d /etc/rancher/rke2 ] || mkdir -p /etc/rancher/rke2
     cp /tmp/lima-rke2-mount/server-config.yaml /etc/rancher/rke2/config.yaml
-    if [ ! -d /var/lib/rancher/rke2 ]; then
-      curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL=v1.31 sh -
-    fi
-    env | grep "http_proxy\|https_proxy\|no_proxy" > /etc/default/rke2-server
-    sed -i "s/http_proxy/CONTAINERD_HTTP_PROXY/g" /etc/default/rke2-server
-    sed -i "s/https_proxy/CONTAINERD_HTTPS_PROXY/g" /etc/default/rke2-server
-    sed -i "s/no_proxy/CONTAINERD_NO_PROXY/g" /etc/default/rke2-server
+    mkdir -p /var/lib/rancher/rke2/server/manifests
+    chmod 700 /var/lib/rancher/rke2/server
+    sed "s/<KUBE_API_SERVER_IP>/${SERVER_IP}/g" /tmp/lima-rke2-mount/rke2-cilium-config.yaml > /var/lib/rancher/rke2/server/manifests/rke2-cilium-config.yaml
 
     systemctl enable rke2-server.service
     systemctl start rke2-server.service
 
     cat<<EOF>/tmp/lima-rke2-mount/registering-config.yaml
-    server: https://$(ip -4 -brief -json address show eth0 | jq -r .[].addr_info[].local):9345
+    server: https://$SERVER_IP:9345
     token: $(cat /var/lib/rancher/rke2/server/node-token)
     EOF
 
@@ -67,18 +70,20 @@ probes:
 - script: |
     #!/bin/bash
     set -eux -o pipefail
-    if ! timeout 30s bash -c "until test -f /etc/rancher/rke2/rke2.yaml; do sleep 3; done"; then
-            echo >&2 "rke2 is not running yet"
+    if ! timeout 30s bash -c "until sudo /var/lib/rancher/rke2/bin/kubectl --kubeconfig=/var/lib/rancher/rke2/agent/kubelet.kubeconfig get nodes -o name | grep -q \"^node\/{{.Hostname}}$\"; do sleep 3; done"; then
+            echo >&2 "Server node is not initialized yet"
             exit 1
     fi
   hint: |
-    The rke2 kubeconfig file has not yet been created.
+    RKE2 server node is not initialized yet.
     Run "limactl shell rke2 sudo journalctl -u rke2-server" to check the log.
     If that is still empty, check the bottom of the log at "/var/log/cloud-init-output.log".
+
 copyToHost:
 - guest: "/etc/rancher/rke2/rke2.yaml"
   host: "{{.Dir}}/copied-from-guest/kubeconfig.yaml"
   deleteOnStop: true
+
 message: |
   To run `kubectl` on the host (assumes kubectl is installed), run the following commands:
   ------
