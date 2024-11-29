@@ -1,5 +1,5 @@
 # RKE2 Agent Node
-# port 80 and 443 from guest forwarded to host
+# port forwarding for ports 80 and 443
 
 images:
 # Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
