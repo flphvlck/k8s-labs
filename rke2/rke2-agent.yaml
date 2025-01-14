@@ -2,14 +2,7 @@
 # port forwarding for ports 80 and 443
 
 images:
-# Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
-- location: "https://cloud-images.ubuntu.com/releases/24.04/release-20241004/ubuntu-24.04-server-cloudimg-amd64.img"
-  arch: "x86_64"
-  digest: "sha256:fad101d50b06b26590cf30542349f9e9d3041ad7929e3bc3531c81ec27f2c788"
-- location: "https://cloud-images.ubuntu.com/releases/24.04/release-20241004/ubuntu-24.04-server-cloudimg-arm64.img"
-  arch: "aarch64"
-  digest: "sha256:e380b683b0c497d2a87af8a5dbe94c42eb54548fa976167f307ed8cf3944ec57"
-# Fallback to the latest release image.
+# Latest release image.
 # Hint: run `limactl prune` to invalidate the cache
 - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
   arch: "x86_64"
@@ -17,7 +10,7 @@ images:
   arch: "aarch64"
 
 mounts: 
-- location: "~/git/k8s-labs/rke2/lima-rke2-mount"
+- location: "~/git/flphvlck/k8s-labs/rke2/lima-rke2-mount"
   mountPoint: "/tmp/lima-rke2-mount"
   writable: true
   
@@ -49,12 +42,15 @@ provision:
   script: |
     #!/bin/sh
 
+    . /tmp/lima-rke2-mount/rke2-channel
+    export INSTALL_RKE2_CHANNEL
+
     [ -d /var/lib/rancher/rke2 ] && exit 0
 
     [ -d /etc/rancher/rke2 ] || mkdir -p /etc/rancher/rke2
     cp /tmp/lima-rke2-mount/registering-config.yaml /etc/rancher/rke2/config.yaml
 
-    curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL=v1.31 sh -
+    curl -sfL https://get.rke2.io | sh -
 
     systemctl enable rke2-agent.service
     systemctl start rke2-agent.service
@@ -63,7 +59,7 @@ probes:
 - script: |
     #!/bin/bash
     set -eux -o pipefail
-    if ! timeout 30s bash -c "until sudo /var/lib/rancher/rke2/bin/kubectl --kubeconfig=/var/lib/rancher/rke2/agent/kubelet.kubeconfig get nodes -o name | grep -q \"^node\/{{.Hostname}}$\"; do sleep 3; done"; then
+    if ! timeout 30s bash -c "until sudo /var/lib/rancher/rke2/bin/kubectl --kubeconfig=/var/lib/rancher/rke2/agent/kubelet.kubeconfig get nodes -o name \"{{.Hostname}}\" | grep -q \"^node\/{{.Hostname}}$\"; do sleep 3; done"; then
             echo >&2 "Agent node is not added yet"
             exit 1
     fi

@@ -1,7 +1,23 @@
 help:
-	@echo "Usage: make {create|start|stop|delete}"
+	@echo "Usage: make {create|create-(1.30|1.31|1.32)|start|stop|delete}"
 
 create:
+	echo INSTALL_RKE2_CHANNEL=stable > lima-rke2-mount/rke2-channel
+	limactl start --name=rke2-server-1 --tty=false rke2-server.yaml
+	limactl start --name=rke2-agent-1 --tty=false rke2-agent.yaml
+
+create-1.30:
+	echo INSTALL_RKE2_CHANNEL=v1.30 > lima-rke2-mount/rke2-channel
+	limactl start --name=rke2-server-1 --tty=false rke2-server.yaml
+	limactl start --name=rke2-agent-1 --tty=false rke2-agent.yaml
+
+create-1.31:
+	echo INSTALL_RKE2_CHANNEL=v1.31 > lima-rke2-mount/rke2-channel
+	limactl start --name=rke2-server-1 --tty=false rke2-server.yaml
+	INSTALL_RKE2_CHANNEL=v1.31 limactl start --name=rke2-agent-1 --tty=false rke2-agent.yaml
+
+create-1.32:
+	echo INSTALL_RKE2_CHANNEL=v1.32 > lima-rke2-mount/rke2-channel
 	limactl start --name=rke2-server-1 --tty=false rke2-server.yaml
 	limactl start --name=rke2-agent-1 --tty=false rke2-agent.yaml
 
@@ -16,8 +32,8 @@ stop:
     
 delete:
 	limactl stop -f rke2-server-1
-	limactl stop -f rke2-agent-1
 	limactl delete rke2-server-1
+	limactl stop -f rke2-agent-1
 	limactl delete rke2-agent-1
 
 # vim: set noexpandtab:

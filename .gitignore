@@ -7,3 +7,4 @@ kubeadm/ssh/id_ed25519*
 *.tfvars
 *.tfvars.json
 **/registering-config.yaml
+**/rke2-channel
