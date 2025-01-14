@@ -21,3 +21,11 @@ The resulting cluster:
   * 1 controle plane (server) node, 1 worker (agent) node
   * CNI is Cilium
   * Ingress NGINX Controller - port 80 and 443 published locally from agent node
+
+**Kubeconfig**
+
+It doesn't manipulate usual `~/.kube/config`. Instead the kubeconfig from server node is saved in your home directory.
+```
+export KUBECONFIG="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
+kubectl get nodes
+```
