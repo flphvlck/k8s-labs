@@ -3,7 +3,7 @@ apiVersion: kind.x-k8s.io/v1alpha4
 name: lab1
 nodes:
 - role: control-plane
-  image: kindest/node:v1.31.2@sha256:18fbefc20a7113353c7b75b5c869d7145a6abd6269154825872dc59c1329912e
+  image: kindest/node:v1.31.4@sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30
   kubeadmConfigPatches:
   - |
     kind: ClusterConfiguration
@@ -22,14 +22,14 @@ nodes:
     containerPath: /etc/kubernetes/admissionconfiguration.yaml
     readOnly: true
 - role: worker
-  image: kindest/node:v1.31.2@sha256:18fbefc20a7113353c7b75b5c869d7145a6abd6269154825872dc59c1329912e
+  image: kindest/node:v1.31.4@sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30
   extraPortMappings:
   - containerPort: 80
     hostPort: 80
   - containerPort: 443
     hostPort: 443
 - role: worker
-  image: kindest/node:v1.31.2@sha256:18fbefc20a7113353c7b75b5c869d7145a6abd6269154825872dc59c1329912e
+  image: kindest/node:v1.31.4@sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30
 networking:
   disableDefaultCNI: true
   podSubnet: "10.244.0.0/16"
