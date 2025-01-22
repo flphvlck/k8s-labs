@@ -32,6 +32,8 @@ create-1.32:
 start:
 	limactl list 2>&1 | grep -q -E "rke2-server-1[[:space:]]+Stopped" && limactl start --name=rke2-server-1 --tty=false
 	limactl list 2>&1 | grep -q -E "rke2-agent-1[[:space:]]+Stopped" && limactl list rke2-agent-1 && limactl start --name=rke2-agent-1 --tty=false
+	kubectl --kubeconfig="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml" config rename-context default rke2-lab
+	@echo To use rke2-lab cluster run: export KUBECONFIG="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
 
 
 stop:
