@@ -4,35 +4,35 @@ help:
 create:
 	echo INSTALL_RKE2_CHANNEL=stable > lima-rke2-mount/rke2-channel
 	limactl start --name=rke2-server-1 --tty=false rke2-server.yaml
+	sed -i "s/default/rke2-lab/g" "${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
 	limactl start --name=rke2-agent-1 --tty=false rke2-agent.yaml
-	kubectl --kubeconfig="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml" config rename-context default rke2-lab
 	@echo To use rke2-lab cluster run: export KUBECONFIG="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
 
 create-1.30:
 	echo INSTALL_RKE2_CHANNEL=v1.30 > lima-rke2-mount/rke2-channel
 	limactl start --name=rke2-server-1 --tty=false rke2-server.yaml
+	sed -i "s/default/rke2-lab/g" "${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
 	limactl start --name=rke2-agent-1 --tty=false rke2-agent.yaml
-	kubectl --kubeconfig="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml" config rename-context default rke2-lab
 	@echo To use rke2-lab cluster run: export KUBECONFIG="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
 
 create-1.31:
 	echo INSTALL_RKE2_CHANNEL=v1.31 > lima-rke2-mount/rke2-channel
 	limactl start --name=rke2-server-1 --tty=false rke2-server.yaml
-	INSTALL_RKE2_CHANNEL=v1.31 limactl start --name=rke2-agent-1 --tty=false rke2-agent.yaml
-	kubectl --kubeconfig="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml" config rename-context default rke2-lab
+	sed -i "s/default/rke2-lab/g" "${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
+	limactl start --name=rke2-agent-1 --tty=false rke2-agent.yaml
 	@echo To use rke2-lab cluster run: export KUBECONFIG="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
 
 create-1.32:
 	echo INSTALL_RKE2_CHANNEL=v1.32 > lima-rke2-mount/rke2-channel
 	limactl start --name=rke2-server-1 --tty=false rke2-server.yaml
+	sed -i "s/default/rke2-lab/g" "${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
 	limactl start --name=rke2-agent-1 --tty=false rke2-agent.yaml
-	kubectl --kubeconfig="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml" config rename-context default rke2-lab
 	@echo To use rke2-lab cluster run: export KUBECONFIG="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
 
 start:
 	limactl list 2>&1 | grep -q -E "rke2-server-1[[:space:]]+Stopped" && limactl start --name=rke2-server-1 --tty=false
+	sed -i "s/default/rke2-lab/g" "${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
 	limactl list 2>&1 | grep -q -E "rke2-agent-1[[:space:]]+Stopped" && limactl list rke2-agent-1 && limactl start --name=rke2-agent-1 --tty=false
-	kubectl --kubeconfig="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml" config rename-context default rke2-lab
 	@echo To use rke2-lab cluster run: export KUBECONFIG="${HOME}/.lima/rke2-server-1/copied-from-guest/kubeconfig.yaml"
 
 
