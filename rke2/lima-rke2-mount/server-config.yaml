@@ -1,6 +1,11 @@
 write-kubeconfig-mode: "0644"
 cni: cilium
 disable-kube-proxy: true
+etcd-expose-metrics: true
+kube-scheduler-arg:
+- "--bind-address=0.0.0.0"
+kube-controller-manager-arg:
+- "--bind-address=0.0.0.0"
 ## taint prevents pods from being scheduled on server (control-plane) node unless they have a corresponding toleration
 #node-taint:
 #  - "node-role.kubernetes.io/control-plane:NoSchedule"
